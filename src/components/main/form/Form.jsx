@@ -2,10 +2,11 @@ import { TextField, Typography, Button, FormControl, InputLabel, Select, MenuIte
 import Grid from '@mui/material/Grid';
 import useStyles from './formStyles'
 import { v4 as uuidv4 } from 'uuid';
-import { useState, useContext } from "react";
+import { useState, useEffect, useContext } from "react";
 import { ExpenseTrackerContext } from '../../../context/context';
 import { incomeCategories, expenseCategories } from "../../../constants/categories";
 import formatDate from "../../../utils/formatDate";
+import { useSpeechContext } from "@speechly/react-client";
 
 const initialState = {
     amount: '',
@@ -18,7 +19,9 @@ const Form = () => {
     const { classes } = useStyles();
     const [formData, setFormData] = useState(initialState);
     const { addTransaction } = useContext(ExpenseTrackerContext);
+    const { segment } = useSpeechContext();
 
+    console.log(formData);
     const createTransaction = () => {
         const transaction = { ...formData, amount: Number(formData.amount), id: uuidv4() }
         addTransaction(transaction);
@@ -26,10 +29,44 @@ const Form = () => {
     }
     const selectedCategories = formData.type === 'Income' ? incomeCategories : expenseCategories;
 
+    useEffect(() => {
+        if (segment) {
+            if (segment.intent.intent === 'add_expense') {
+                setFormData({ ...formData, type: 'Expense' })
+            } else if (segment.intent.intent === 'add_income') {
+                setFormData({ ...formData, type: 'Income' })
+            } else if (segment.isFinal && segment.intent.intent === "create_transaction") {
+                return createTransaction();
+            } else if (segment.isFinal && segment.intent.intent === "cancel_transaction") {
+                return setFormData(initialState);
+            }
+
+            segment.entities.forEach((e) => {
+                const category = `${e.value.charAt(0)}${e.value.slice(1).toLowerCase()}`;
+                switch (e.type) {
+                    case 'amount':
+                        setFormData({ ...formData, amount: e.value });
+                        break;
+                    case 'date':
+                        setFormData({ ...formData, amount: e.value });
+                        break;
+                    case 'category':
+                        setFormData({ ...formData, category });
+                        break;
+                    default:
+                        break;
+
+                }
+            })
+        }
+    }, [segment]);
+
     return (
         <Grid container spacing={2}>
             <Grid item={true} xs={12}>
-                <Typography align='center' variant="subtitle2" gutterBottom>///</Typography>
+                <Typography align='center' variant="subtitle2" gutterBottom>
+                    {segment && segment.words.map((w) => w.value).join(" ")}
+                </Typography>
             </Grid>
             <Grid item={true} xs={6}>
                 <FormControl fullWidth variant="standard">
