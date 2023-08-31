@@ -31,6 +31,6 @@ export default makeStyles()((theme) => ({
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-evenly',
-        height: '90%'
+        height: 'max-content'
     }
 }));

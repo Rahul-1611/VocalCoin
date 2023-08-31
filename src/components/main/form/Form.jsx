@@ -7,6 +7,7 @@ import { ExpenseTrackerContext } from '../../../context/context';
 import { incomeCategories, expenseCategories } from "../../../constants/categories";
 import formatDate from "../../../utils/formatDate";
 import { useSpeechContext } from "@speechly/react-client";
+import CustomizedSnackbar from "../../Snackbar/Snackbar";
 
 const initialState = {
     amount: '',
@@ -20,14 +21,17 @@ const Form = () => {
     const [formData, setFormData] = useState(initialState);
     const { addTransaction } = useContext(ExpenseTrackerContext);
     const { segment } = useSpeechContext();
+    const [open, setOpen] = useState(false);
 
-    console.log(formData);
     const createTransaction = () => {
-        const transaction = { ...formData, amount: Number(formData.amount), id: uuidv4() }
+        if (Number.isNaN(Number(formData.amount)) || !formData.date.includes('-')) return;
+        const transaction = { ...formData, amount: Number(formData.amount), id: uuidv4() };
+        setOpen(true);
         addTransaction(transaction);
         setFormData(initialState);
     }
     const selectedCategories = formData.type === 'Income' ? incomeCategories : expenseCategories;
+
 
     useEffect(() => {
         if (segment) {
@@ -51,18 +55,25 @@ const Form = () => {
                         setFormData({ ...formData, amount: e.value });
                         break;
                     case 'category':
-                        setFormData({ ...formData, category });
+                        if (incomeCategories.map((iC) => iC.type).includes(category)) {
+                            setFormData({ ...formData, type: 'Income', category });
+                        } else if (expenseCategories.map((iC) => iC.type).includes(category)) {
+                            setFormData({ ...formData, type: 'Expense', category });
+                        }
                         break;
                     default:
                         break;
-
                 }
             })
+            if (segment.isFinal && formData.amount && formData.category && formData.date && formData.type) {
+                createTransaction();
+            }
         }
     }, [segment]);
 
     return (
         <Grid container spacing={2}>
+            <CustomizedSnackbar open={open} setOpen={setOpen} />
             <Grid item={true} xs={12}>
                 <Typography align='center' variant="subtitle2" gutterBottom>
                     {segment && segment.words.map((w) => w.value).join(" ")}
